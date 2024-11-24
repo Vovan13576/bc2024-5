@@ -41,14 +41,27 @@ app.get('/notes/:name', (req, res) => {
 });
 
 // Замінює текст існуючої нотатки
-app.put('/notes/:name', (req, res) => {
-  const notePath = path.join(options.cache, `${req.params.name}.txt`);
-  if (!fs.existsSync(notePath)) {
-    return res.status(404).send('Note not found');
+// Замінює текст існуючої нотатки (text/plain)
+app.put('/notes/:name', express.text({ type: 'text/plain' }), (req, res) => {
+  const noteName = req.params.name; // Назва нотатки
+  const noteText = req.body; // Отриманий текст з тіла запиту
+
+  if (!noteText) {
+    return res.status(400).send("Text content is required in the request body.");
   }
-  fs.writeFileSync(notePath, req.body.text);
-  res.send('Note updated');
+
+  const notePath = path.join(options.cache, `${noteName}.txt`);
+
+  // Перевірка, чи існує файл
+  if (!fs.existsSync(notePath)) {
+    return res.status(404).send("Note not found");
+  }
+
+  // Запис нового тексту у файл
+  fs.writeFileSync(notePath, noteText);
+  res.send(`Note '${noteName}' has been updated.`);
 });
+
 
 // Видаляє нотатку
 app.delete('/notes/:name', (req, res) => {
@@ -73,18 +86,20 @@ app.get('/notes', (req, res) => {
   res.json(notes);
 });
 
-// Створення нової нотатки через форму
-app.post('/write', multer().none(), (req, res) => {
-  const noteName = req.body.note_name;
-  const noteText = req.body.note;
-  const notePath = path.join(options.cache, `${noteName}.txt`);
+// Створення або оновлення тексту нотатки через POST (text/plain)
+app.post('/notes/:name', express.text({ type: 'text/plain' }), (req, res) => {
+  const noteName = req.params.name; // Назва нотатки з параметра URL
+  const noteText = req.body; // Текст нотатки з тіла запиту (text/plain)
 
-  if (fs.existsSync(notePath)) {
-    return res.status(400).send('Note already exists');
+  if (!noteText) {
+    return res.status(400).send("Text content is required in the request body.");
   }
 
+  const notePath = path.join(options.cache, `${noteName}.txt`);
+
+  // Створення або перезапис файлу
   fs.writeFileSync(notePath, noteText);
-  res.status(201).send('Note created');
+  res.status(201).send(`Note '${noteName}' has been created or updated.`);
 });
 
 // Створення HTTP сервера
